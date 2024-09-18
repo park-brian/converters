@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON/YAML Converter</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: system-ui, sans-serif;
+        padding: 0;
+        margin: 0;
+      }
+
+      .font-monospace {
+        font-family: monospace;
+      }
+
+      .d-flex {
+        display: flex;
+      }
+
+      .flex-column {
+        flex-direction: column;
+      }
+
+      .center {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+
+      .d-block {
+        display: block;
+      }
+
+      .flex-grow {
+        flex-grow: 1;
+      }
+
+      .w-100 {
+        width: 100%;
+      }
+
+      .h-75vh {
+        height: 75vh;
+      }
+
+      .w-60px {
+        width: 60px;
+      }
+
+      .p-1 {
+        padding: 1rem;
+      }
+
+      .m-1 {
+        margin: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="d-flex w-100">
+      <div class="flex-grow p-1">
+        <label for="json">JSON</label>
+        <textarea id="jsonInput" class="d-block w-100 h-75vh font-monospace"></textarea>
+      </div>
+      <div class="d-flex flex-column center w-60px">
+        <button class="m-1 p-1 w-100" id="jsonToYaml">&gt;&gt;</button>
+        <button class="m-1 p-1 w-100" id="yamlToJson">&lt;&lt;</button>
+        <label>Indent</label>
+        <input class="m-1 p-1 w-100 center" type=="number" id="indentInput" value="2">
+      </div>
+
+      <div class="flex-grow p-1">
+        <label for="yaml">YAML</label>
+        <textarea id="yamlInput" class="d-block w-100 h-75vh font-monospace" rows="100"></textarea>
+      </div>
+    </div>
+
+    <script type="module">
+      import yaml from "https://cdn.jsdelivr.net/npm/yaml@2.5.1/+esm";
+      console.log(yaml);
+
+      // support cloudformation tags
+      const tagDefs = [
+        {
+          names: ["Ref"],
+          types: ["scalar", "map", "seq"],
+        },
+        {
+          names: [
+            "Base64",
+            "Cidr",
+            "And",
+            "Equals",
+            "If",
+            "Not",
+            "Or",
+            "Condition",
+            "FindInMap",
+            "GetAZs",
+            "ImportValue",
+            "Join",
+            "Length",
+            "Select",
+            "Split",
+            "Sub",
+            "Transform",
+          ],
+          prefix: "Fn::",
+          types: ["scalar", "map", "seq"],
+        },
+        {
+          names: ["GetAtt"],
+          prefix: "Fn::",
+          types: ["scalar", "map", "seq"],
+          valueResolver: (val) => (typeof val === "string" ? val.split(".") : val),
+        },
+      ];
+
+      const customTags = tagDefs
+        .map((tagDef) =>
+          tagDef.names.map((name) =>
+            tagDef.types.map((type) => {
+              const tag = `!${name}`;
+              const collection = type === "scalar" ? undefined : type;
+              const resolvedTagName = (tagDef.prefix ?? "") + name;
+              const resolveValue = tagDef.valueResolver ?? ((v) => v);
+              const resolve = (val) => ({ [resolvedTagName]: resolveValue(val) });
+              return { tag, collection, resolve };
+            })
+          )
+        )
+        .flat();
+
+      jsonToYaml.onclick = function () {
+        const jsonText = jsonInput.value;
+        const indent = +indentInput.value || 2;
+        try {
+          const json = yaml.parse(jsonText);
+          const yamlText = yaml.stringify(json, { indent, customTags });
+          yamlInput.value = yamlText;
+        } catch (error) {
+          console.error(error);
+          alert(error);
+        }
+      };
+
+      yamlToJson.onclick = function () {
+        const yamlText = yamlInput.value;
+        const indent = +indentInput.value || 2;
+        try {
+          const json = yaml.parse(yamlText, { customTags });
+          const jsonText = JSON.stringify(json, null, indent);
+          jsonInput.value = jsonText;
+        } catch (error) {
+          console.error(error);
+          alert(error);
+        }
+      };
+    </script>
+  </body>
+</html>
